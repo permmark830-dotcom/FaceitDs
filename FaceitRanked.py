@@ -9,8 +9,9 @@ from discord import app_commands
 from discord.ext import commands
 
 # ================== НАСТРОЙКИ ==================
-BOT_TOKEN = os.getenv("BOT_TOKEN", "BOT")
-OWNER_ID = int(os.getenv("OWNER_ID", "0"))
+BOT_TOKEN = "СЮДА_НОВЫЙ_ТОКЕН"
+GUILD_ID = 0  # ← ВСТАВЬ ID СВОЕГО СЕРВЕРА (целое число)
+OWNER_ID = 0  # ← ВСТАВЬ СВОЙ DISCORD ID (целое число)
 SECRET_ADMIN_CODE = "penis148867xindosxyesos"
 DB_PATH = "ranked.db"
 
@@ -248,10 +249,6 @@ class MainMenu(discord.ui.View):
                         (msg.id,msg.channel.id,pid)); conn.commit()
         except Exception as e: print("party create:", e)
 
-    @discord.ui.button(label="Войти в пати", emoji="📨", style=discord.ButtonStyle.secondary, row=2)
-    async def b_party_join(self, inter: discord.Interaction, btn: discord.ui.Button):
-        await inter.response.send_modal(JoinPartyModal())
-
     @discord.ui.button(label="Создать лобби", emoji="🎮", style=discord.ButtonStyle.green, row=3)
     async def b_lobby_create(self, inter: discord.Interaction, btn: discord.ui.Button):
         p = get_player(inter.user.id)
@@ -335,11 +332,6 @@ class LobbyJoinModal(discord.ui.Modal, title="Вход в лобби"):
         await update_lobby_msg(lob["id"])
         await maybe_start_banning(lob["id"])
 
-class JoinPartyModal(discord.ui.Modal, title="Войти в пати"):
-    game_id = discord.ui.TextInput(label="Игровой ID владельца пати", max_length=64)
-    async def on_submit(self, inter: discord.Interaction):
-        await inter.response.send_message("Владелец должен пригласить тебя через панель пати.", ephemeral=True)
-
 # ================== ПАТИ ==================
 def party_embed(party_id:int, owner_nick:str) -> discord.Embed:
     members = get_party_members(party_id)
@@ -419,8 +411,6 @@ class PartyView(discord.ui.View):
         try:
             await inter.channel.send(embed=E("🎮 Лобби", f"Код: `{code}`\nХост: <@{self.owner_id}>\nРежим: {mode}", COLOR_GREEN),
                                      view=LobbyView(lid))
-            # сохраняем message_id/channel_id
-            # берём последнее сообщение
             async for m in inter.channel.history(limit=1):
                 cur.execute("UPDATE lobbies SET message_id=?,channel_id=? WHERE id=?", (m.id, m.channel.id, lid)); conn.commit()
         except Exception as e: print("party play send:", e)
@@ -737,7 +727,6 @@ class ResultView(discord.ui.View):
             await inter.response.send_message("Только капитан.", ephemeral=True); return
         await inter.response.send_message("Отправь результат в ЛС в формате:\n`счёт(10-7)` затем K/D/A каждого игрока построчно: `Ник K D A`. Если забыл скрин — начни с `forgot`.", ephemeral=True)
         try:
-            user = await bot.fetch_user(inter.user.id)
             def check(m): return m.author.id == inter.user.id and isinstance(m.channel, discord.DMChannel)
             msg = await bot.wait_for("message", check=check, timeout=300)
             await handle_result_input(self.lid, inter.user.id, msg)
@@ -849,7 +838,6 @@ async def cmd_start(inter: discord.Interaction):
         return
     await inter.response.send_message(embed=main_menu_embed(inter), view=MainMenu(), ephemeral=True)
 
-# Дублирующие слэш-команды (для удобства)
 @bot.tree.command(name="register", description="Регистрация")
 async def cmd_register(inter: discord.Interaction, game_id: str, nickname: str):
     if await check_banned(inter): return
@@ -969,11 +957,19 @@ async def on_message(message: discord.Message):
 # ================== СТАРТ ==================
 @bot.event
 async def on_ready():
+    # Синхронизация по гильдии (мгновенная)
     try:
-        await bot.tree.sync()
-        print("Slash синхронизированы.")
-    except Exception as e: print("sync:", e)
-    print(f"Бот запущен: {bot.user}")
+        if GUILD_ID:
+            guild = discord.Object(id=GUILD_ID)
+            bot.tree.copy_global_to(guild=guild)
+            synced = await bot.tree.sync(guild=guild)
+            print(f"✅ Синхронизировано {len(synced)} команд на гильдии {GUILD_ID}")
+        else:
+            synced = await bot.tree.sync()
+            print(f"✅ Глобальная синхронизация: {len(synced)} команд (может занять до 1 часа)")
+    except Exception as e:
+        print("❌ sync err:", e)
+    print(f"🤖 Бот запущен: {bot.user}")
 
 if __name__ == "__main__":
     bot.run(BOT_TOKEN)

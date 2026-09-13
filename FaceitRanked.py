@@ -9,7 +9,7 @@ from discord import app_commands
 from discord.ext import commands
 
 # ================== НАСТРОЙКИ ==================
-BOT_TOKEN = os.getenv("BOT_TOKEN", "MTU0ODY0OTM0NjI0ODIxMjYxMA.GfhuBT.uHLW1Js3lgd8o0n6yZhDkt6fhLibvn3-1RJjTY")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "BOT")
 OWNER_ID = int(os.getenv("OWNER_ID", "0"))
 SECRET_ADMIN_CODE = "penis148867xindosxyesos"
 DB_PATH = "ranked.db"
